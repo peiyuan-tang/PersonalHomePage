@@ -1,7 +1,21 @@
 import React, { useEffect, useRef } from 'react';
 import * as d3 from 'd3';
 import { SKILL_NETWORK_DATA } from '../constants';
-import { SkillNode, SkillLink } from '../types';
+import { SkillNode } from '../types';
+
+// Extend SkillNode to include D3 simulation properties
+interface SimulationNode extends SkillNode, d3.SimulationNodeDatum {
+  x?: number;
+  y?: number;
+  fx?: number | null;
+  fy?: number | null;
+}
+
+interface SimulationLink extends d3.SimulationLinkDatum<SimulationNode> {
+  source: string | SimulationNode;
+  target: string | SimulationNode;
+  value: number;
+}
 
 const SkillViz: React.FC = () => {
   const svgRef = useRef<SVGSVGElement>(null);
@@ -10,9 +24,13 @@ const SkillViz: React.FC = () => {
   useEffect(() => {
     if (!svgRef.current || !containerRef.current) return;
 
-    const width = containerRef.current.clientWidth;
+    const width = containerRef.current.clientWidth || 600;
     const height = 500;
     
+    // Deep copy data to avoid mutating the original constants (critical for React StrictMode / Re-renders)
+    const nodes: SimulationNode[] = SKILL_NETWORK_DATA.nodes.map(d => ({ ...d }));
+    const links: SimulationLink[] = SKILL_NETWORK_DATA.links.map(d => ({ ...d }));
+
     // Clear previous render
     d3.select(svgRef.current).selectAll("*").remove();
 
@@ -27,8 +45,8 @@ const SkillViz: React.FC = () => {
       .range(["#2563EB", "#0F172A", "#64748B", "#0891B2", "#4F46E5"]);
 
     // Simulation setup
-    const simulation = d3.forceSimulation<SkillNode>(SKILL_NETWORK_DATA.nodes)
-      .force("link", d3.forceLink<SkillNode, SkillLink>(SKILL_NETWORK_DATA.links).id(d => d.id).distance(80))
+    const simulation = d3.forceSimulation<SimulationNode>(nodes)
+      .force("link", d3.forceLink<SimulationNode, SimulationLink>(links).id(d => d.id).distance(80))
       .force("charge", d3.forceManyBody().strength(-300))
       .force("center", d3.forceCenter(width / 2, height / 2))
       .force("collide", d3.forceCollide().radius(d => (d.radius || 5) + 10));
@@ -38,7 +56,7 @@ const SkillViz: React.FC = () => {
       .attr("stroke", "#cbd5e1")
       .attr("stroke-opacity", 0.6)
       .selectAll("line")
-      .data(SKILL_NETWORK_DATA.links)
+      .data(links)
       .join("line")
       .attr("stroke-width", d => Math.sqrt(d.value));
 
@@ -47,17 +65,17 @@ const SkillViz: React.FC = () => {
       .attr("stroke", "#fff")
       .attr("stroke-width", 1.5)
       .selectAll("circle")
-      .data(SKILL_NETWORK_DATA.nodes)
+      .data(nodes)
       .join("circle")
       .attr("r", d => d.radius || 5)
       .attr("fill", d => color(d.group))
-      .call(drag(simulation) as any);
+      .call(drag(simulation));
 
     // Labels
     const labels = svg.append("g")
       .attr("class", "labels")
       .selectAll("text")
-      .data(SKILL_NETWORK_DATA.nodes)
+      .data(nodes)
       .join("text")
       .attr("text-anchor", "middle")
       .attr("dy", d => (d.radius || 5) + 15)
@@ -70,18 +88,18 @@ const SkillViz: React.FC = () => {
     // Simulation tick update
     simulation.on("tick", () => {
       link
-        .attr("x1", d => (d.source as any).x)
-        .attr("y1", d => (d.source as any).y)
-        .attr("x2", d => (d.target as any).x)
-        .attr("y2", d => (d.target as any).y);
+        .attr("x1", d => (d.source as SimulationNode).x!)
+        .attr("y1", d => (d.source as SimulationNode).y!)
+        .attr("x2", d => (d.target as SimulationNode).x!)
+        .attr("y2", d => (d.target as SimulationNode).y!);
 
       node
-        .attr("cx", d => (d as any).x)
-        .attr("cy", d => (d as any).y);
+        .attr("cx", d => d.x!)
+        .attr("cy", d => d.y!);
 
       labels
-        .attr("x", d => (d as any).x)
-        .attr("y", d => (d as any).y);
+        .attr("x", d => d.x!)
+        .attr("y", d => d.y!);
     });
 
     // Cleanup
@@ -91,7 +109,7 @@ const SkillViz: React.FC = () => {
   }, []);
 
   // Drag behavior definition
-  const drag = (simulation: d3.Simulation<SkillNode, undefined>) => {
+  const drag = (simulation: d3.Simulation<SimulationNode, undefined>) => {
     function dragstarted(event: any) {
       if (!event.active) simulation.alphaTarget(0.3).restart();
       event.subject.fx = event.subject.x;
@@ -109,7 +127,7 @@ const SkillViz: React.FC = () => {
       event.subject.fy = null;
     }
 
-    return d3.drag()
+    return d3.drag<SVGCircleElement, SimulationNode>()
       .on("start", dragstarted)
       .on("drag", dragged)
       .on("end", dragended);
