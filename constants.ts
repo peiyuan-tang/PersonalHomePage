@@ -3,7 +3,7 @@ import { Job, Education, Project, SkillData } from './types';
 export const SOCIAL_LINKS = {
   linkedin: "https://www.linkedin.com/in/peiyuan-tang-313204a6/",
   email: "mailto:town9628@gmail.com",
-  website: "https://peiyuan-tang-portfolio.vercel.app/",
+  website: "https://personal-home-page-phi.vercel.app/",
   github: "https://github.com/Xiangzhoujushi",
   personalProjects: "https://github.com/peiyuan-tang"
 };

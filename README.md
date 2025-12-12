@@ -5,7 +5,7 @@ This is the personal portfolio website for David Tang (Peiyuan), a Staff Softwar
 The site is built as a static Single Page Application (SPA) using React.
 
 ## 🚀 Live Demo
-[https://peiyuan-tang-portfolio.vercel.app/](https://peiyuan-tang-portfolio.vercel.app/)
+[https://personal-home-page-phi.vercel.app/](https://personal-home-page-phi.vercel.app/)
 
 ## 🛠 Tech Stack
 
